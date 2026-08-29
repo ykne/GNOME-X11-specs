@@ -88,5 +88,5 @@ jobs:
           printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          rsync -avz --exclude='BUILD/' -e "ssh -i ~/.ssh/id_deploy" \
+          rsync -avz --exclude='BUILD/' --chmod=Da+rx,Fa+r -e "ssh -i ~/.ssh/id_deploy" \
             "$TOPDIR/" "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH"
