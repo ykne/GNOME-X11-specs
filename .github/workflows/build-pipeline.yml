@@ -17,7 +17,7 @@ jobs:
     env:
       REBASE_ROOT: /home/builder/gnome-x11-build/rebase
       TOPDIR: /home/builder/gnome-x11-build/copr
-      HAS_DEPLOY_KEY: ${{ secrets.ZARAFA_SSH_PRIVATE_KEY != '' }}
+      HAS_DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY != '' }}
     steps:
       - name: Checkout specs + scripts
         uses: actions/checkout@v4
@@ -77,12 +77,16 @@ jobs:
           path: /tmp/gnome-x11-build-all/**/*.log
           if-no-files-found: ignore
 
-      - name: Publish to example-deploy-host.invalid
+      - name: Publish to configured deploy target
         if: ${{ env.HAS_DEPLOY_KEY == 'true' }}
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.ZARAFA_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H example-deploy-host.invalid >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           rsync -avz --exclude='BUILD/' -e "ssh -i ~/.ssh/id_deploy" \
-            "$TOPDIR/" deployuser@example-deploy-host.invalid:public_html/copr/
+            "$TOPDIR/" "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH"
