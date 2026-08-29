@@ -1,0 +1,74 @@
+name: build gnome-x11-restore packages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+      options: --privileged
+    env:
+      REBASE_ROOT: /home/builder/gnome-x11-build/rebase
+      TOPDIR: /home/builder/gnome-x11-build/copr
+    steps:
+      - name: Checkout specs + scripts
+        uses: actions/checkout@v4
+
+      - name: Install build tooling
+        run: |
+          dnf install -y mock rpm-build git-core createrepo_c meson ninja-build \
+            rsync openssh-clients xz tar util-linux
+
+      - name: Create unprivileged build user
+        run: |
+          useradd -m builder
+          usermod -aG mock builder
+
+      - name: Populate specs into shared topdir
+        run: |
+          runuser -u builder -- bash -c "mkdir -p '$TOPDIR/SPECS' && cp '$GITHUB_WORKSPACE'/SPECS/*.spec '$TOPDIR/SPECS/'"
+
+      - name: Clone package forks
+        run: |
+          declare -A BRANCH=(
+            [mutter]=x11-restore-50.4
+            [gnome-shell]=x11-restore-50.4
+            [gnome-control-center]=x11-restore-50.4
+            [gnome-session]=x11-restore-50.1
+            [gdm]=x11-restore-50.2
+            [gnome-shell-extensions]=x11-restore-50.3
+          )
+          for pkg in "${!BRANCH[@]}"; do
+            runuser -u builder -- bash -c "git clone --depth 1 --branch '${BRANCH[$pkg]}' 'https://github.com/ykne/$pkg.git' '$REBASE_ROOT/$pkg'"
+          done
+
+      - name: Vendor meson subprojects (gnome-shell, gnome-control-center)
+        run: |
+          runuser -u builder -- bash -c "cd '$REBASE_ROOT/gnome-shell' && meson subprojects download"
+          runuser -u builder -- bash -c "cd '$REBASE_ROOT/gnome-control-center' && meson subprojects download"
+
+      - name: Build all 6 packages
+        run: |
+          runuser -u builder -- bash -c "REBASE_ROOT='$REBASE_ROOT' TOPDIR='$TOPDIR' '$GITHUB_WORKSPACE/scripts/build-all.sh'"
+
+      - name: Upload built RPMs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gnome-x11-restore-rpms
+          path: |
+            /home/builder/gnome-x11-build/copr/RPMS/**
+            /home/builder/gnome-x11-build/copr/SRPMS/**
+          if-no-files-found: warn
+
+      - name: Publish to example-deploy-host.invalid
+        if: ${{ secrets.ZARAFA_SSH_PRIVATE_KEY != '' }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.ZARAFA_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H example-deploy-host.invalid >> ~/.ssh/known_hosts 2>/dev/null
+          rsync -avz --exclude='BUILD/' -e "ssh -i ~/.ssh/id_deploy" \
+            "$TOPDIR/" deployuser@example-deploy-host.invalid:public_html/copr/
