@@ -27,9 +27,9 @@ jobs:
           useradd -m builder
           usermod -aG mock builder
 
-      - name: Populate specs into shared topdir
+      - name: Populate specs and local patches/sources into shared topdir
         run: |
-          runuser -u builder -- bash -c "mkdir -p '$TOPDIR/SPECS' && cp '$GITHUB_WORKSPACE'/SPECS/*.spec '$TOPDIR/SPECS/'"
+          runuser -u builder -- bash -c "mkdir -p '$TOPDIR/SPECS' '$TOPDIR/SOURCES' && cp '$GITHUB_WORKSPACE'/SPECS/*.spec '$TOPDIR/SPECS/' && cp '$GITHUB_WORKSPACE'/SOURCES/* '$TOPDIR/SOURCES/'"
 
       - name: Clone package forks
         run: |
