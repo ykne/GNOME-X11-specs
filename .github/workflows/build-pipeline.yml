@@ -47,7 +47,7 @@ jobs:
             [gnome-shell-extensions]=x11-restore-50.3
           )
           for pkg in "${!BRANCH[@]}"; do
-            runuser -u builder -- bash -c "git clone --depth 1 --branch '${BRANCH[$pkg]}' 'https://github.com/ykne/$pkg.git' '$REBASE_ROOT/$pkg'"
+            runuser -u builder -- bash -c "git clone --depth 1 --recurse-submodules --shallow-submodules --branch '${BRANCH[$pkg]}' 'https://github.com/ykne/$pkg.git' '$REBASE_ROOT/$pkg'"
           done
 
       - name: Vendor meson subprojects (gnome-shell, gnome-control-center)
