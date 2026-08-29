@@ -1,0 +1,50 @@
+name: mock smoke test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mock-init:
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44
+      options: --privileged
+    steps:
+      - name: Install mock
+        run: dnf install -y mock
+
+      - name: Create unprivileged build user
+        run: |
+          useradd -m builder
+          usermod -aG mock builder
+
+      - name: mock --init
+        id: init
+        continue-on-error: true
+        run: |
+          runuser -u builder -- mock -r fedora-44-x86_64 --init
+
+      - name: mock --chroot smoke command
+        id: chroot
+        if: steps.init.outcome == 'success'
+        continue-on-error: true
+        run: |
+          runuser -u builder -- mock -r fedora-44-x86_64 --chroot -- rpm -q bash
+
+      - name: Upload mock result log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-result-log
+          path: /var/lib/mock/fedora-44-x86_64/result/*.log
+          if-no-files-found: warn
+
+      - name: Report outcome
+        if: always()
+        run: |
+          if [ "${{ steps.init.outcome }}" = "success" ] && [ "${{ steps.chroot.outcome }}" = "success" ]; then
+            echo "PASS: mock --init and --chroot both succeeded in this container."
+          else
+            echo "FAIL: init=${{ steps.init.outcome }} chroot=${{ steps.chroot.outcome }} — see uploaded mock-result-log artifact."
+            exit 1
+          fi
