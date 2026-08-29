@@ -12,6 +12,7 @@ jobs:
     env:
       REBASE_ROOT: /home/builder/gnome-x11-build/rebase
       TOPDIR: /home/builder/gnome-x11-build/copr
+      HAS_DEPLOY_KEY: ${{ secrets.ZARAFA_SSH_PRIVATE_KEY != '' }}
     steps:
       - name: Checkout specs + scripts
         uses: actions/checkout@v4
@@ -64,7 +65,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Publish to example-deploy-host.invalid
-        if: ${{ secrets.ZARAFA_SSH_PRIVATE_KEY != '' }}
+        if: ${{ env.HAS_DEPLOY_KEY == 'true' }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.ZARAFA_SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
