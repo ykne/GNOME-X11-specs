@@ -2,6 +2,11 @@ name: build gnome-x11-restore packages
 
 on:
   workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Space-separated package names to build (default: all 6)'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -50,9 +55,9 @@ jobs:
           runuser -u builder -- bash -c "cd '$REBASE_ROOT/gnome-shell' && meson subprojects download"
           runuser -u builder -- bash -c "cd '$REBASE_ROOT/gnome-control-center' && meson subprojects download"
 
-      - name: Build all 6 packages
+      - name: Build packages
         run: |
-          runuser -u builder -- bash -c "REBASE_ROOT='$REBASE_ROOT' TOPDIR='$TOPDIR' '$GITHUB_WORKSPACE/scripts/build-all.sh'"
+          runuser -u builder -- bash -c "REBASE_ROOT='$REBASE_ROOT' TOPDIR='$TOPDIR' '$GITHUB_WORKSPACE/scripts/build-all.sh' ${{ inputs.packages }}"
 
       - name: Upload built RPMs
         if: always()
@@ -63,6 +68,14 @@ jobs:
             /home/builder/gnome-x11-build/copr/RPMS/**
             /home/builder/gnome-x11-build/copr/SRPMS/**
           if-no-files-found: warn
+
+      - name: Upload mock build logs (on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-build-logs
+          path: /tmp/gnome-x11-build-all/**/*.log
+          if-no-files-found: ignore
 
       - name: Publish to example-deploy-host.invalid
         if: ${{ env.HAS_DEPLOY_KEY == 'true' }}
