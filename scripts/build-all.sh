@@ -3,11 +3,15 @@
 # one shared rpmbuild %_topdir, producing a single installable local repo.
 #
 # For each package: regenerate its source tarball from the fork's current
-# HEAD (make-source-tarball.sh), stamp the spec with a git-hash Release
-# (per feedback_gnome_shell_build_gotchas.md's standing convention),
-# `rpmbuild -bs`, then `mock --rebuild` into a scratch resultdir and copy
-# the built RPMs into copr/RPMS/<arch>/. Once all 6 are done, runs
-# `createrepo_c` over copr/RPMS so it's a real installable yum repo.
+# HEAD (make-source-tarball.sh), copy that same fork's own .copr/<pkg>.spec
+# + .copr/SOURCES/* into the shared topdir (specs/patches are now owned by
+# each fork itself, not a separate specs repo - see GNOME-X11-specs's own
+# SPECS/SOURCES, kept only as a historical record), stamp the spec with a
+# git-hash Release (per feedback_gnome_shell_build_gotchas.md's standing
+# convention), `rpmbuild -bs`, then `mock --rebuild` into a scratch
+# resultdir and copy the built RPMs into copr/RPMS/<arch>/. Once all 6 are
+# done, runs `createrepo_c` over copr/RPMS so it's a real installable yum
+# repo.
 #
 # Usage: build-all.sh [package ...]
 #   No arguments: builds all 6 packages, in order.
@@ -66,6 +70,14 @@ for pkg in "${packages[@]}"; do
 
         echo "-- generating source tarball --"
         "$SCRIPT_DIR/make-source-tarball.sh" "$pkg"
+
+        echo "-- populating spec + local sources from the fork's own .copr/ --"
+        cp "$REBASE_ROOT/$pkg/.copr/$pkg.spec" "$TOPDIR/SPECS/$pkg.spec"
+        shopt -s nullglob
+        for f in "$REBASE_ROOT/$pkg"/.copr/SOURCES/*; do
+                cp "$f" "$TOPDIR/SOURCES/"
+        done
+        shopt -u nullglob
 
         hash=$(git -C "$REBASE_ROOT/$pkg" rev-parse --short=8 HEAD)
         echo "-- stamping spec with git hash $hash --"

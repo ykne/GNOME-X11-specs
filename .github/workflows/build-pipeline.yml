@@ -32,10 +32,6 @@ jobs:
           useradd -m builder
           usermod -aG mock builder
 
-      - name: Populate specs and local patches/sources into shared topdir
-        run: |
-          runuser -u builder -- bash -c "mkdir -p '$TOPDIR/SPECS' '$TOPDIR/SOURCES' && cp '$GITHUB_WORKSPACE'/SPECS/*.spec '$TOPDIR/SPECS/' && cp '$GITHUB_WORKSPACE'/SOURCES/* '$TOPDIR/SOURCES/'"
-
       - name: Clone package forks
         run: |
           declare -A BRANCH=(
@@ -49,6 +45,16 @@ jobs:
           for pkg in "${!BRANCH[@]}"; do
             runuser -u builder -- bash -c "git clone --depth 1 --recurse-submodules --shallow-submodules --branch '${BRANCH[$pkg]}' 'https://github.com/ykne/$pkg.git' '$REBASE_ROOT/$pkg'"
           done
+
+      - name: Populate specs and local patches/sources from each fork's own .copr/
+        run: |
+          runuser -u builder -- bash -c "
+            mkdir -p '$TOPDIR/SPECS' '$TOPDIR/SOURCES'
+            for pkg in mutter gnome-shell gnome-control-center gnome-session gdm gnome-shell-extensions; do
+              cp \"\$REBASE_ROOT/\$pkg/.copr/\$pkg.spec\" '$TOPDIR/SPECS/'
+              cp \"\$REBASE_ROOT/\$pkg/.copr/SOURCES/\"* '$TOPDIR/SOURCES/' 2>/dev/null || true
+            done
+          "
 
       - name: Vendor meson subprojects (gnome-shell, gnome-control-center)
         run: |

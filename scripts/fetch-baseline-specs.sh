@@ -4,10 +4,16 @@
 # the stock upstream tarball, which make-source-tarball.sh replaces with
 # our own restored source) from the local dist-git clones' f44 branch.
 #
-# This is a genuine external input, not something build-all.sh or
-# make-source-tarball.sh can regenerate on their own - run this once to
-# bootstrap a fresh copr/ topdir (or after intentionally re-syncing to a
-# newer Fedora spec revision).
+# NOT part of the regular build flow anymore (build-all.sh now populates
+# $TOPDIR/SPECS+SOURCES straight from each fork's own already-fixed
+# .copr/<pkg>.spec + .copr/SOURCES/*, alongside the source clone it does
+# for make-source-tarball.sh). This script's real remaining purpose:
+# re-bootstrapping from a genuinely new stock Fedora baseline (e.g. when
+# rebasing onto a newer Fedora release) - a genuine external input, not
+# something build-all.sh or make-source-tarball.sh can regenerate on
+# their own. Reapply the already-documented spec-delta fixes (see
+# project_local_copr_build_pipeline.md) to whatever this pulls, then
+# commit the result into the relevant fork's .copr/, not here.
 #
 # Usage: fetch-baseline-specs.sh [package ...]  (default: all 6)
 
