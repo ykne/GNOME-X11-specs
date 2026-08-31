@@ -80,8 +80,15 @@ for pkg in "${packages[@]}"; do
         shopt -u nullglob
 
         hash=$(git -C "$REBASE_ROOT/$pkg" rev-parse --short=8 HEAD)
-        echo "-- stamping spec with git hash $hash --"
-        sed "s/^Release:.*\$/Release:        1.g${hash}%{?dist}/" \
+        ts=$(git -C "$REBASE_ROOT/$pkg" log -1 --format=%ct HEAD)
+        echo "-- stamping spec with git hash $hash (release $ts.g$hash) --"
+        # timestamp leads the hash so Release sorts by real chronology -
+        # a bare git-hash Release does NOT sort chronologically under
+        # RPM's version comparison (confirmed via rpm.labelCompare: an
+        # all-hex-letters hash can sort higher than a hash starting with
+        # digits, regardless of actual commit order) - see the matching
+        # fix + explanation in each fork's own .copr/Makefile
+        sed "s/^Release:.*\$/Release:        ${ts}.g${hash}%{?dist}/" \
                 "$TOPDIR/SPECS/$pkg.spec" > "$TOPDIR/SPECS/$pkg-gitrel.spec"
 
         echo "-- rpmbuild -bs --"
